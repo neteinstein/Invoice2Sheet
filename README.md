@@ -133,27 +133,23 @@ Web:
 
 ## Web deployment
 
-Pushes to `main` build the Kotlin/Wasm web target once and publish it to both GitHub Pages and
-Cloudflare Pages via [`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml), while
-the site moves from one host to the other. The two deploys run as separate jobs, so one failing
-doesn't block the other.
+Pushes to `main` build the Kotlin/Wasm web target and publish it to Cloudflare Pages via
+[`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml). The site is served at
+`https://invoice2sheet.pedrovicente.pt`.
 
 Set the `GOOGLE_WEB_CLIENT_ID` repository variable (Settings → Secrets and variables → Actions →
-Variables) to enable Google sign-in on the deployed site. Add each host's origin (e.g.
-`https://neteinstein.github.io` and `https://<project>.pages.dev`) to the OAuth client's authorized
-JavaScript origins in the Google Cloud console.
+Variables) to enable Google sign-in on the deployed site.
 
-**GitHub Pages:** enable Pages once under Settings → Pages → Source → GitHub Actions.
-
-**Cloudflare Pages:**
+One-time Cloudflare setup:
 
 1. Create a Direct Upload Pages project in the Cloudflare dashboard (Workers & Pages → Create →
    Pages → Upload assets), or run `npx wrangler pages project create invoice2sheet --production-branch=main`.
-2. Create an API token with the **Cloudflare Pages: Edit** permission.
-3. Add the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. If the project
+2. In the project's **Custom domains** tab, add `invoice2sheet.pedrovicente.pt`.
+3. Create an API token with the **Cloudflare Pages: Edit** permission.
+4. Add the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. If the project
    isn't called `invoice2sheet`, set its name in the `CLOUDFLARE_PAGES_PROJECT` repository variable.
 
-Until both secrets are set, the Cloudflare job is skipped with a notice, not failed.
+The workflow fails fast if either secret is missing.
 
 ## Android releases
 
