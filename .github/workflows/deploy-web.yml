@@ -1,4 +1,7 @@
-name: Deploy web to GitHub Pages
+name: Deploy web to Cloudflare Pages
+
+# Every push to main builds the Kotlin/Wasm site and publishes it to Cloudflare Pages, which serves
+# invoice2sheet.pedrovicente.pt. See README.md → Web deployment.
 
 on:
   push:
@@ -7,17 +10,32 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: cloudflare-pages
+      url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
+      # Fail fast, before spending CI time, if the Cloudflare credentials aren't set up (README.md).
+      - name: Validate required secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          missing=()
+          [ -z "$CLOUDFLARE_API_TOKEN" ] && missing+=("CLOUDFLARE_API_TOKEN")
+          [ -z "$CLOUDFLARE_ACCOUNT_ID" ] && missing+=("CLOUDFLARE_ACCOUNT_ID")
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required Action secrets: ${missing[*]} (see README.md → Web deployment)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v6
@@ -41,16 +59,9 @@ jobs:
           fi
           ./gradlew :composeApp:wasmJsBrowserDistribution
 
-      - uses: actions/upload-pages-artifact@v5
+      - id: deploy
+        uses: cloudflare/wrangler-action@v4
         with:
-          path: composeApp/build/dist/wasmJs/productionExecutable
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy composeApp/build/dist/wasmJs/productionExecutable --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT || 'invoice2sheet' }} --branch=main --commit-hash=${{ github.sha }}
